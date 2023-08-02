@@ -1,0 +1,16 @@
+# "configure" calls hdt-cpp's configure with suitable parameters.
+
+# TODO: The git commands should probably be in a "dependencies"
+#       step; however, that requires adding
+#       prolog:build_setp(dependencies, make) to build/make.pl
+
+set -e -x
+
+HDTHOME=hdt-cpp
+
+( [ ! -f ${HDTHOME}/autogen.sh ] || (cd ${HDTHOME} && git reset --hard) )
+git submodule update --init ${HDTHOME}
+
+cd ${HDTHOME}
+./autogen.sh
+./configure --prefix=${HOME}/.local CXXFLAGS='-fPIC -O2 -g' CFLAGS='-fPIC -O2 -g'

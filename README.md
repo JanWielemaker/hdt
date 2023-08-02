@@ -17,15 +17,26 @@ Installation on Windows requires more creativity though.
 
 ## Installation
 
-1. Install a recent version of Serd:
+1. Install a recent version of Serd. One way of doing this
+on Ubuntu is: `sudo apt install libserd-0-0 serdi`
 
+The currently installed version can be found by the command `serdi
+-v`. The minimum version of Serd is 0.28.0 (see `hdt-cpp/README.md` or
+the `before_install` rule in `hdt-cpp/.travis.yml`).
+
+If that isn't available, it can be installed and built by:
 ```bash
-curl -s http://download.drobilla.net/serd-0.26.0.tar.bz2 | tar -xj && \
-  cd serd-0.26.0 && \
-  ./waf configure && \
-  ./waf && \
+curl -s http://download.drobilla.net/serd-0.30.0.tar.bz2 | tar -xj && \
+  cd serd-0.30.0 && \
+  python2 ./waf configure && \
+  python2 ./waf && \
   sudo ./waf install;
 ```
+
+You may wish to specify `--prefix=/usr/local` or `--prefix=$HOME/.local`
+to `waf configure`.
+
+You can uninstall by `python2 ./waf uninstall`
 
 2. Install Raptor2.
 

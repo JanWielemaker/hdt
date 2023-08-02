@@ -90,7 +90,7 @@
 %	collection.  Options:
 %
 %	  - access(+Access)
-%	  How the file is accessed. On of `map` (map the file
+%	  How the file is accessed. One of `map` (map the file
 %	  into memory, default) or `load` (load the content of the
 %	  file).
 %	  - indexed(+Boolean)
