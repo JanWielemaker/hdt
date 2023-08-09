@@ -21,10 +21,10 @@ LD=g++
 all:	$(SOBJ)
 
 c/libhdt.a: $(HDTLIB)/libhdt.a
-	ln $(HDTLIB)/libhdt.a c/
+	ln -f $< $@
 
 c/libcds.a: $(CDSLIB)/libcds.a
-	ln $(CDSLIB)/libcds.a c/
+	ln -f $< $@
 
 $(SOBJ): $(OBJ) $(OBJ2)
 	mkdir -p $(PACKSODIR)

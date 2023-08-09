@@ -82,12 +82,17 @@
 	hdt_object_id(+, o, ?),
 	hdt_search_cost(+, r, r, o, -).
 
-%%	hdt_open(-HDT, +File) is det.
-%%	hdt_open(-HDT, +File, +Options) is det.
+%!	hdt_open(-HDT, +File) is det.
+%!	hdt_open(-HDT, +File, +Options) is det.
 %
 %	Open an existing HDT file and unify HDT with a handle to it. The
 %	handle is an opaque symbol  that   is  subject to (atom) garbage
-%	collection.  Options:
+%	collection.
+%
+%       File is expanded by absolute_file_name/3, with the default
+%       extension `.hdt`.
+%
+%         Options:
 %
 %	  - access(+Access)
 %	  How the file is accessed. One of `map` (map the file
@@ -103,7 +108,11 @@
 hdt_open(HDT, File) :-
 	hdt_open(HDT, File, []).
 
-%%	hdt_search(+HDT, ?S, ?P, ?O)
+hdt_open(HDT, File, Options) :-
+	absolute_file_name(File, FileAbs, [extensions([hdt]), expand(true), access(read)]),
+	hdt_open_(HDT, FileAbs, Options).
+
+%!	hdt_search(+HDT, ?S, ?P, ?O)
 %
 %	True if <S,P,O> is a triple in HDT.
 
@@ -112,7 +121,7 @@ hdt_search(HDT, S, P, O) :-
 	hdt_search(HDT, content, S, P, OHDT),
 	post_object(O, OHDT).
 
-%%	hdt_header(+HDT, ?S, ?P, ?O)
+%!	hdt_header(+HDT, ?S, ?P, ?O)
 %
 %	True if <S,P,O> is a triple in the header of HDT.
 
@@ -140,11 +149,11 @@ header_untyped_object(O0, O) :-
 header_untyped_object(S, O) :-
 	rdf_equal(O, S^^xsd:string).
 
-%%	hdt_subject(+HDT, ?S) is nondet.
-%%	hdt_predicate(+HDT, ?P) is nondet.
-%%	hdt_object(+HDT, ?O) is nondet.
-%%	hdt_shared(+HDT, ?SO) is nondet.
-%%	hdt_node(+HDT, ?Node) is nondet.
+%!	hdt_subject(+HDT, ?S) is nondet.
+%!	hdt_predicate(+HDT, ?P) is nondet.
+%!	hdt_object(+HDT, ?O) is nondet.
+%!	hdt_shared(+HDT, ?SO) is nondet.
+%!	hdt_node(+HDT, ?Node) is nondet.
 %
 %	Enumerate possible values for the   individual components of the
 %	triples represented in the HDT. Note   that these enumarators do
@@ -209,8 +218,8 @@ hdt_node(HDT, Node) :-
 	).
 
 
-%%	pre_object(+HDT, ?O, -OHDT) is det.
-%%	post_object(?O, +OHDT) is det.
+%!	pre_object(+HDT, ?O, -OHDT) is det.
+%!	post_object(?O, +OHDT) is det.
 %
 %	Pre/post object processing. The  HDT   library  itself is purely
 %	string based.
@@ -253,7 +262,7 @@ post_object(O, HDT) :-
 	rdf_canonical_literal(HDT, O).
 
 
-%%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
+%!	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
 %
 %	True when Results is a  list  of   suggestions  for  Base in the
 %	triple role Role. Some experimentation   suggests  it performs a
@@ -265,7 +274,7 @@ post_object(O, HDT) :-
 %	@arg Role is one of `subject`, `predicate` or `object`
 
 
-%%	hdt_property(+HDT, ?Property) is nondet.
+%!	hdt_property(+HDT, ?Property) is nondet.
 %
 %	True if Property is a property of HTD.  Defined properties are
 %
@@ -300,9 +309,9 @@ hdt_property(elements(_)).
 		 *	    IDENTIFIERS		*
 		 *******************************/
 
-%%	hdt_subject_id(+HDT,   ?Subject:atom,   ?Id:integer) is semidet.
-%%	hdt_predicate_id(+HDT, ?Predicate:atom, ?Id:integer) is semidet.
-%%	hdt_object_id(+HDT,    ?Object:any,     ?Id:integer) is semidet.
+%!	hdt_subject_id(+HDT,   ?Subject:atom,   ?Id:integer) is semidet.
+%!	hdt_predicate_id(+HDT, ?Predicate:atom, ?Id:integer) is semidet.
+%!	hdt_object_id(+HDT,    ?Object:any,     ?Id:integer) is semidet.
 %
 %	True if String is mapped to Id in   the given role. Fails if the
 %	requested String or Id is not known for the given role in HDT.
@@ -318,8 +327,8 @@ hdt_object_id(HDT, Object, Id) :-
 	hdt_string_id(HDT, object, String, Id),
 	post_object(Object, String).
 
-%%	hdt_pre_triple(+HDT,  ?TripleIn, -TripleID) is det.
-%%	hdt_post_triple(+HDT, ?TripleIn, +TripleID) is det.
+%!	hdt_pre_triple(+HDT,  ?TripleIn, -TripleID) is det.
+%!	hdt_post_triple(+HDT, ?TripleIn, +TripleID) is det.
 %
 %	Perform term->id and  id->term  translation   for  triples.  The
 %	predicate hdt_search/4 could be defined as:
@@ -364,11 +373,11 @@ post_iri_id(HDT, Role, In, Id) :-
 	hdt_string_id(HDT, Role, In, Id).
 
 
-%%	hdt_search_id(+HDT, ?S:integer, ?P:integer, ?O:integer) is nondet.
+%!	hdt_search_id(+HDT, ?S:integer, ?P:integer, ?O:integer) is nondet.
 %
 %	True if a triple with the indicated identifiers exists.
 
-%%	hdt_search_cost(HDT, ?S, ?P, ?O, -Cost:nonneg) is det.
+%!	hdt_search_cost(HDT, ?S, ?P, ?O, -Cost:nonneg) is det.
 
 hdt_search_cost(HDT, S, P, O, Cost) :-
 	Triple   = t(S,P,O),
@@ -382,7 +391,7 @@ hdt_search_cost(_, _, _, _, 0).
 		 *	       CREATE		*
 		 *******************************/
 
-%%	hdt_create_from_file(+HDTFile, +RDFFile, +Options)
+%!	hdt_create_from_file(+HDTFile, +RDFFile, +Options)
 %
 %	Create a HDT  file  from  an  RDF   file.  RDFFile  must  be  in
 %	`ntriples` format.  Options:
