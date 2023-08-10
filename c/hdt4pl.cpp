@@ -274,7 +274,7 @@ unify_object(PlTerm t, const char *s)
 PREDICATE_NONDET(hdt_search, 5)
 { hdt_wrapper *symb;
   int rc;
-  PlForeignContextPtr<search_it> ctx(handle);
+  auto ctx = handle.context_unique_ptr<search_it>();
 
   static PlAtom ATOM_content("content");
   static PlAtom ATOM_header("header");
@@ -284,7 +284,7 @@ PREDICATE_NONDET(hdt_search, 5)
     { char *s, *p, *o;
       PlAtom where(PlAtom::null);
 
-      ctx.set(new search_it());
+      ctx.reset(new search_it());
       get_hdt(A1, &symb);
       A2.get_atom_ex(&where);
       if ( !get_search_string(A3, &s, S_S, &ctx->flags) ||
@@ -300,7 +300,7 @@ PREDICATE_NONDET(hdt_search, 5)
         else
           throw PlDomainError("hdt_where", A2);
       } CATCH_HDT;
-    } // TODO: drop-through
+    } // TODO: [[fallthrough]]
     case PL_REDO:
     { if ( ctx->it->hasNext() )
       { TripleString *t = ctx->it->next();
@@ -308,7 +308,7 @@ PREDICATE_NONDET(hdt_search, 5)
 	if ( (!(ctx->flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
 	     (!(ctx->flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
 	     (!(ctx->flags&S_O) || unify_object(A5, t->getObject().c_str())) )
-	{ PL_retry_address(ctx.keep());
+	{ PL_retry_address(ctx.release());
 	}
       }
       return false;
@@ -424,13 +424,13 @@ struct IteratorUCharString_ctx
 
 
 PREDICATE_NONDET(hdt_column_, 3)
-{ PlForeignContextPtr<IteratorUCharString_ctx> ctx(handle);
+{ auto ctx = handle.context_unique_ptr<IteratorUCharString_ctx>();
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
       PlAtom a(PlAtom::null);
-      ctx.set(new IteratorUCharString_ctx());
+      ctx.reset(new IteratorUCharString_ctx());
 
       get_hdt(A1, &symb);
       A2.get_atom_ex(&a);
@@ -455,7 +455,7 @@ PREDICATE_NONDET(hdt_column_, 3)
 	  throw PlDomainError("hdt_column", A2);
       } CATCH_HDT;
 
-    } // TODO: drop-through
+    } // TODO: [[fallthrough]]
     case PL_REDO:
       if ( ctx->it->hasNext() )
       { unsigned char *s = ctx->it->next();
@@ -463,7 +463,7 @@ PREDICATE_NONDET(hdt_column_, 3)
 	int rc = A3.unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, reinterpret_cast<const char*>(s));
 	ctx->it->freeStr(s);
 	if ( rc )
-	  PL_retry_address(ctx.keep());
+	  PL_retry_address(ctx.release());
       }
       return false;
     case PL_PRUNED:
@@ -478,20 +478,20 @@ PREDICATE_NONDET(hdt_column_, 3)
 
 
 PREDICATE_NONDET(hdt_object_, 2)
-{ PlForeignContextPtr<IteratorUCharString_ctx> ctx(handle);
+{ auto ctx = handle.context_unique_ptr<IteratorUCharString_ctx>();
   uintptr_t mask = 0;
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
-      ctx.set(new IteratorUCharString_ctx());
+      ctx.reset(new IteratorUCharString_ctx());
 
       get_hdt(A1, &symb);
 
       try
       { ctx->it.reset(symb->hdt->getDictionary()->getObjects());
       } CATCH_HDT;
-    } // TODO: drop-through
+    } // TODO: [[fallthrough]]
     case PL_REDO:
       if ( ctx->it->hasNext() )
       { unsigned char *s = ctx->it->next();
@@ -499,7 +499,7 @@ PREDICATE_NONDET(hdt_object_, 2)
 	int rc = unify_object(A2, reinterpret_cast<const char*>(s));
 	ctx->it->freeStr(s);
 	if ( rc )
-	  PL_retry_address(ctx.keep());
+	  PL_retry_address(ctx.release());
       }
       return false;
     case PL_PRUNED:
@@ -591,13 +591,13 @@ get_search_id(PlTerm t, size_t *id, unsigned flag, unsigned *flagp)
 
 PREDICATE_NONDET(hdt_search_id, 4)
 { hdt_wrapper *symb;
-  PlForeignContextPtr<searchid_it> ctx(handle);
+  auto ctx = handle.context_unique_ptr<searchid_it>();
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { size_t s, p, o;
 
-      ctx.set(new searchid_it());
+      ctx.reset(new searchid_it());
       get_hdt(A1, &symb);
       get_search_id(A2, &s, S_S, &ctx->flags);
       get_search_id(A3, &p, S_P, &ctx->flags);
@@ -607,14 +607,15 @@ PREDICATE_NONDET(hdt_search_id, 4)
       { TripleID t(s,p,o);
 	ctx->it.reset(symb->hdt->getTriples()->search(t));
       } CATCH_HDT;
-    } // TODO: drop-through
+    } // TODO: [[fallthrough]]
+    case PL_REDO:
     { if ( ctx->it->hasNext() )
       { TripleID *t = ctx->it->next();
 
 	if ( (!(ctx->flags&S_S) || A2.unify_integer(t->getSubject())) &&
 	     (!(ctx->flags&S_P) || A3.unify_integer(t->getPredicate())) &&
 	     (!(ctx->flags&S_O) || A4.unify_integer(t->getObject())) )
-        { PL_retry_address(ctx.keep());
+        { PL_retry_address(ctx.release());
 	}
       }
       return false;
@@ -706,4 +707,3 @@ PREDICATE(hdt_create_from_file, 3)
 
   return true;
 }
-
