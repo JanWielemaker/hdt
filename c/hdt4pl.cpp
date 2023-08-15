@@ -32,175 +32,96 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define PL_ARITY_AS_SIZE 1
 #include <SWI-Stream.h>
-#include <SWI-cpp.h>
+#include <SWI-cpp2.h>
 #include <iostream>
 #include <HDTManager.hpp>
 #include <assert.h>
 
-using namespace std;
+#include <SWI-cpp2.cpp>
+
+// using namespace std; TODO: remove this
 using namespace hdt;
 
 static void	deleteHDT(HDT *hdt);
-static int	get_triple_role(term_t t, TripleComponentRole *role);
+static int	get_triple_role(PlTerm t, TripleComponentRole *role);
 
 #define CATCH_HDT \
-	catch (char *e)				\
-	{ return hdt_error(e);			\
+	catch (const PlExceptionBase& )		\
+	{ throw;			 	\
+	} catch (const std::bad_alloc& )	\
+	{ throw;				\
+	} catch (char *e)			\
+	{ throw hdt_error(e);			\
 	} catch (const char *e)			\
-	{ return hdt_error(e);			\
+	{ throw hdt_error(e);			\
 	} catch (std::exception& e)		\
-	{ return hdt_error(e.what());		\
+	{ throw hdt_error(e.what());		\
 	}
-
-extern "C" {
 
 #define URL_xsd		  "http://www.w3.org/2001/XMLSchema#"
 #define URL_xsdString     URL_xsd "string"
 #define URL_xsdDouble     URL_xsd "double"
 
-static atom_t ATOM_mapping;
-static atom_t ATOM_max_id;
-static atom_t ATOM_max_object_id;
-static atom_t ATOM_max_predicate_id;
-static atom_t ATOM_max_subject_id;
-static atom_t ATOM_objects;
-static atom_t ATOM_predicates;
-static atom_t ATOM_shared;
-static atom_t ATOM_subjects;
-static atom_t ATOM_elements;
-static atom_t ATOM_subject;
-static atom_t ATOM_predicate;
-static atom_t ATOM_object;
-static atom_t ATOM_access;
-static atom_t ATOM_indexed;
-static atom_t ATOM_map;
-static atom_t ATOM_load;
-static atom_t ATOM_header;
-static atom_t ATOM_content;
-static atom_t ATOM_base_uri;
+struct hdt_wrapper;
 
-static functor_t FUNCTOR_rdftype2;
-static functor_t FUNCTOR_rdflang2;
+static PL_blob_t hdt_blob = PL_BLOB_DEFINITION(hdt_wrapper, "hdt");
 
-typedef struct hdt_wrapper
-{ atom_t	symbol;			/* Associated symbol */
-  HDT	       *hdt;
-} hdt_wrapper;
+struct hdt_wrapper : public PlBlob
+{ HDT *hdt = nullptr; // TODO: can this be std::unique_ptr<HDT>?
+  std::string file_name;
 
+  explicit hdt_wrapper()
+    : PlBlob(&hdt_blob)
+  { }
 
-static void
-acquire_hdt(atom_t symbol)
-{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
-  symb->symbol = symbol;
-}
+  PL_BLOB_SIZE
 
-
-static int
-release_hdt(atom_t symbol)
-{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
-
-  if ( symb->hdt )
-  { deleteHDT(symb->hdt);
-    symb->hdt = NULL;
+  ~hdt_wrapper()
+  { close();
   }
-  PL_free(symb);
 
-  return TRUE;
-}
+  void close() noexcept
+  { if ( hdt )
+    { deleteHDT(hdt);				/* FIXME: Thread safety */
+      hdt = nullptr;
+    }
+  }
 
-static int
-compare_hdts(atom_t a, atom_t b)
-{ hdt_wrapper *ara = (hdt_wrapper*)PL_blob_data(a, NULL, NULL);
-  hdt_wrapper *arb = (hdt_wrapper*)PL_blob_data(b, NULL, NULL);
-
-  return ( ara > arb ?  1 :
-	   ara < arb ? -1 : 0
-	 );
-}
-
-
-static int
-write_hdt(IOSTREAM *s, atom_t symbol, int flags)
-{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
-
-  Sfprintf(s, "<hdt>(%p)", symb);
-
-  return TRUE;
-}
-
-static PL_blob_t hdt_blob =
-{ PL_BLOB_MAGIC,
-  PL_BLOB_NOCOPY,
-  (char*)"hdt",
-  release_hdt,
-  compare_hdts,
-  write_hdt,
-  acquire_hdt
+  int compare_fields(const PlBlob* _b_data) const override
+  { auto b_data = static_cast<const hdt_wrapper*>(_b_data);
+    return file_name.compare(b_data->file_name);
+  }
 };
 
 
-static int
-get_hdt(term_t t, hdt_wrapper **symb_ptr)
+static void
+get_hdt(PlTerm t, hdt_wrapper **symb_ptr)
 { PL_blob_t *type;
   void *data;
 
-  if ( PL_get_blob(t, &data, NULL, &type) && type == &hdt_blob)
-  { hdt_wrapper *symb = (hdt_wrapper*)data;
+  if ( t.get_blob(&data, NULL, &type) && type == &hdt_blob)
+  { auto symb = static_cast<hdt_wrapper*>(data);
 
     if ( !symb->hdt )
-      return PL_existence_error("hdt", t);
+      throw PlExistenceError("hdt", t);
     *symb_ptr = symb;
-
-    return TRUE;
+    return;
   }
 
-  return PL_type_error("hdt", t);
+  throw PlTypeError("hdt", t);
 }
 
-
-#define MKATOM(a) ATOM_ ## a = PL_new_atom(#a)
-
-install_t
-install_hdt4pl(void)
-{ MKATOM(mapping);
-  MKATOM(max_id);
-  MKATOM(max_object_id);
-  MKATOM(max_predicate_id);
-  MKATOM(max_subject_id);
-  MKATOM(objects);
-  MKATOM(predicates);
-  MKATOM(shared);
-  MKATOM(subjects);
-  MKATOM(elements);
-  MKATOM(subject);
-  MKATOM(predicate);
-  MKATOM(object);
-  MKATOM(access);
-  MKATOM(indexed);
-  MKATOM(map);
-  MKATOM(load);
-  MKATOM(content);
-  MKATOM(header);
-  MKATOM(base_uri);
-
-  FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
-  FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
-}
-
-}/* end extern "C" */
 
 static void
 deleteHDT(HDT *hdt)
 { delete hdt;
 }
 
-static int
+static PlException
 hdt_error(const char *e)
-{ PlCompound f("hdt_error", PlTermv(e));
-
-  return PL_raise_exception(PlCompound("error", PlTermv(f, PlTerm())));
+{ throw PlGeneralError(PlCompound("hdt_error",
+                                  PlTermv(PlTerm_atom(e))));
 }
 
 
@@ -209,72 +130,62 @@ hdt_error(const char *e)
 		 *******************************/
 
 
-PREDICATE(hdt_open, 3)
-{ HDT *hdt;
-  atom_t access = ATOM_map;
-  int indexed = TRUE;
-  PlTail options(A3);
-  PlTerm opt;
-  char *name;
+PREDICATE(hdt_open_, 3)
+{ static PlAtom ATOM_map("map");
+  PlAtom access(ATOM_map); // default
+  int indexed = true;
+  PlTerm_tail options(A3);
+  PlTerm_var opt;
+  static PlAtom ATOM_access("access");
+  static PlAtom ATOM_indexed("indexed");
+  static PlAtom ATOM_load("load");
+
+  auto symb = std::make_unique<hdt_wrapper>();
 
   while(options.next(opt))
-  { atom_t name;
+  { PlAtom name(PlAtom::null);
     size_t arity;
 
-    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    if ( opt.get_name_arity(&name, &arity) && arity == 1 )
     { PlTerm ov = opt[1];
 
       if ( name == ATOM_access )
-      { if ( !PL_get_atom_ex(ov, &access) )
-	  return FALSE;
+      { ov.get_atom_ex(&access);
       } else if ( name == ATOM_indexed )
-      { if ( !PL_get_bool_ex(ov, &indexed) )
-	  return FALSE;
+      { ov.get_bool_ex(&indexed);
       }
     } else
-      return PL_type_error("option", opt);
+      throw PlDomainError("option", opt);
   }
 
-  if ( !PL_get_file_name(A2, &name, PL_FILE_EXIST) )
-    return FALSE;
+  symb->file_name = A2.as_string();
+  const char* fn = symb->file_name.c_str();
 
   try
   { if ( access == ATOM_map )
-    { if ( indexed )
-	hdt = HDTManager::mapIndexedHDT(name);
-      else
-	hdt = HDTManager::mapHDT(A2);
+    { symb->hdt = indexed ?
+        HDTManager::mapIndexedHDT(fn) :
+        HDTManager::mapHDT(fn);
     } else if ( access == ATOM_load )
-    { if ( indexed )
-	hdt = HDTManager::loadIndexedHDT(name);
-      else
-	hdt = HDTManager::loadHDT(A2);
+    { symb->hdt = indexed ?
+        HDTManager::loadIndexedHDT(fn) :
+        HDTManager::loadHDT(fn);
     } else
-    { PlTerm ex;
-
-      PL_put_atom(ex, access);
-      return PL_domain_error("hdt_access", ex);
+    { throw PlDomainError("hdt_access", PlTerm_atom(access));
     }
   } CATCH_HDT;
 
-  hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
-  memset(symb, 0, sizeof(*symb));
-  symb->hdt = hdt;
-
-  return PL_unify_blob(A1, symb, sizeof(*symb), &hdt_blob);
+  std::unique_ptr<PlBlob> symb_b(symb.release());
+  return A1.unify_blob(&symb_b);
 }
 
 
 PREDICATE(hdt_close, 1)
 { hdt_wrapper *symb;
 
-  if ( !get_hdt(A1, &symb) )
-    return FALSE;
-
-  deleteHDT(symb->hdt);				/* FIXME: Thread safety */
-  symb->hdt = NULL;
-
-  return TRUE;
+  get_hdt(A1, &symb);
+  symb->close();
+  return true;
 }
 
 
@@ -282,34 +193,36 @@ PREDICATE(hdt_close, 1)
 #define S_P 0x02
 #define S_O 0x04
 
-typedef struct
-{ unsigned flags;
-  IteratorTripleString *it;
-} search_it;
-
+struct search_it
+{ unsigned flags = 0;
+  std::unique_ptr<IteratorTripleString> it;
+};
 
 static int
-get_search_string(term_t t, char **s, unsigned flag, unsigned *flagp)
-{ if ( PL_is_variable(t) )
+get_search_string(PlTerm t, char **s, unsigned flag, unsigned *flagp)
+{ if ( t.is_variable() )
   { *s = (char*)"";
     *flagp |= flag;
-    return TRUE;
+    return true;
   } else
   { size_t len;
 
-    return PL_get_nchars(t, &len, s, CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+    return t.get_nchars(&len, s, CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   }
 }
 
 static int
-unify_string(term_t t, const char *s)
-{ return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
+unify_string(PlTerm t, const char *s)
+{ return t.unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, s);
 }
 
 
 static int
-unify_object(term_t t, const char *s)
-{ if ( s[0] == '"' )
+unify_object(PlTerm t, const char *s)
+{ static PlFunctor FUNCTOR_rdftype2("^^", 2);
+  static PlFunctor FUNCTOR_rdflang2("@", 2);
+
+  if ( s[0] == '"' )
   { const char *e = s+strlen(s)-1;
 
     for(;; e--)
@@ -317,111 +230,97 @@ unify_object(term_t t, const char *s)
 	e--;
       if ( e > s )
       { if ( e[1] == '\0' )		/* No type nor lang??  In header ... */
-	{ term_t av = PL_new_term_refs(2);
-	  int rc;
+	{ int rc;
 
 	  s++;
-	  rc = PL_unify_chars(t, PL_STRING|REP_UTF8, e-s, s);
+	  rc = t.unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	  return rc;
 	} else if ( strncmp(e+1, "^^<", 3) == 0 )
-	{ term_t av = PL_new_term_refs(2);
+	{ PlTermv av(2);
 	  int rc;
 
 	  s++;
-	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
+	  rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	  e += 4;
-	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, strlen(e)-1, e);
-	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdftype2, av);
-	  rc = rc && PL_unify(t, av);
+	  rc = rc && av[1].unify_chars(PL_ATOM|REP_UTF8, strlen(e)-1, e);
+	  rc = rc && PL_cons_functor_v(av[0].C_, FUNCTOR_rdftype2.C_, av[0].C_); // TODO: av[0].cons_functor_v()
+	  rc = rc && t.unify_term(av[0]);
 	  return rc;
 	} else if ( strncmp(e+1, "@", 1) == 0 )
-	{ term_t av = PL_new_term_refs(2);
+	{ PlTermv av(2);
 	  int rc;
 
 	  s++;
-	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
+	  rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	  e += 2;
-	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, (size_t)-1, e);
-	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdflang2, av);
-	  rc = rc && PL_unify(t, av);
+	  rc = rc && av[1].unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, e);
+	  rc = rc && PL_cons_functor_v(av[0].C_, FUNCTOR_rdflang2.C_, av[0].C_); // TODO: av[0].cons_functor_v()
+	  rc = rc && t.unify_term(av[0]);
 	  return rc;
 	}
       } else
       { assert(0);
-	return FALSE;
+	return false;
       }
     }
   }
 
-  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
+  return t.unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, s);
 }
-
 
 /** hdt_search(+HDT, +Where, ?S, ?P, ?O)
 */
 
 PREDICATE_NONDET(hdt_search, 5)
 { hdt_wrapper *symb;
-  search_it ctx_buf = {0};
-  search_it *ctx;
   int rc;
+  auto ctx = handle.context_unique_ptr<search_it>();
 
-  switch(PL_foreign_control(handle))
+  static PlAtom ATOM_content("content");
+  static PlAtom ATOM_header("header");
+
+  switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { char *s, *p, *o;
-      atom_t where;
+      PlAtom where(PlAtom::null);
 
-      ctx = &ctx_buf;
-      if ( !get_hdt(A1, &symb) )
-	return FALSE;
-      if ( !PL_get_atom_ex(A2, &where) ||
-	   !get_search_string(A3, &s, S_S, &ctx->flags) ||
+      ctx.reset(new search_it());
+      get_hdt(A1, &symb);
+      A2.get_atom_ex(&where);
+      if ( !get_search_string(A3, &s, S_S, &ctx->flags) ||
 	   !get_search_string(A4, &p, S_P, &ctx->flags) ||
 	   !get_search_string(A5, &o, S_O, &ctx->flags) )
-	return FALSE;
+	return false;
 
       try
       { if ( where == ATOM_content )
-	  ctx->it = symb->hdt->search(s,p,o);
-	else if ( where == ATOM_header )
-	  ctx->it = symb->hdt->getHeader()->search(s,p,o);
-	else
-	  return PL_domain_error("hdt_where", A2);
+          ctx->it.reset(symb->hdt->search(s,p,o));
+        else if ( where == ATOM_header )
+          ctx->it.reset(symb->hdt->getHeader()->search(s,p,o));
+        else
+          throw PlDomainError("hdt_where", A2);
       } CATCH_HDT;
-
-      goto next;
-    }
+    } // TODO: [[fallthrough]]
     case PL_REDO:
-      ctx = (search_it*)PL_foreign_context_address(handle);
-    next:
     { if ( ctx->it->hasNext() )
       { TripleString *t = ctx->it->next();
 
 	if ( (!(ctx->flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
 	     (!(ctx->flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
 	     (!(ctx->flags&S_O) || unify_object(A5, t->getObject().c_str())) )
-	{ if ( ctx == &ctx_buf )
-	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
-	    *ctx = ctx_buf;
-	  }
-	  PL_retry_address(ctx);
+	{ PL_retry_address(ctx.release());
 	}
       }
-      rc = FALSE;
-      goto cleanup;
+      return false;
     }
     case PL_PRUNED:
-      ctx = (search_it*)PL_foreign_context_address(handle);
-      rc = TRUE;
-    cleanup:
-      if ( ctx->it )
-	delete ctx->it;
-      if ( ctx != &ctx_buf )
-	PL_free(ctx);
-      return rc;
+      return true;
+    default:
+      assert(0);
+      return false;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -436,29 +335,29 @@ PREDICATE(hdt_suggestions, 5)
   int max_count;
   std::vector<string> out;
 
-  if ( !get_hdt(A1, &symb) ||
-       !PL_get_nchars(A2, &len, &from,
+  get_hdt(A1, &symb);
+  if ( !A2.get_nchars(&len, &from,
 		      CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) ||
-       !get_triple_role(A3, &role) ||
-       !PL_get_integer_ex(A4, &max_count) )
-    return FALSE;
+       !get_triple_role(A3, &role) )
+    return false;
+  A4.get_integer_ex(&max_count);
 
   try
   { symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
   } CATCH_HDT;
 
-  term_t tail = PL_copy_term_ref(A5);
-  term_t head = PL_new_term_ref();
+  PlTerm tail = A5.copy_term_ref();
+  PlTerm_var head;
   for(std::vector<string>::iterator it = out.begin();
       it != out.end();
       ++it)
-  { if ( !PL_unify_list(tail,head,tail) ||
+  { if ( !tail.unify_list(head,tail) ||
 	 !(role == OBJECT ? unify_object(head, it->c_str())
 			  : unify_string(head, it->c_str())) )
-      return FALSE;
+      return false;
   }
 
-  return PL_unify_nil(tail);
+  return tail.unify_nil();
 }
 
 
@@ -468,141 +367,158 @@ PREDICATE(hdt_suggestions, 5)
 
 PREDICATE(hdt_property_, 2)
 { hdt_wrapper *symb;
-  atom_t name; size_t arity;
+  PlAtom name(PlAtom::null);
+  size_t arity;
 
-  if ( !get_hdt(A1, &symb) )
-    return FALSE;
+  get_hdt(A1, &symb);
 
-  if ( PL_get_name_arity(A2, &name, &arity) )
+  if ( A2.get_name_arity(&name, &arity) )
   { PlTerm a = A2[1];
 
     try
     { Dictionary *dict = symb->hdt->getDictionary();
 
+      static PlAtom ATOM_mapping("mapping");
+      static PlAtom ATOM_max_id("max_id");
+      static PlAtom ATOM_max_object_id("max_object_id");
+      static PlAtom ATOM_max_predicate_id("max_predicate_id");
+      static PlAtom ATOM_max_subject_id("max_subject_id");
+      static PlAtom ATOM_objects("objects");
+      static PlAtom ATOM_predicates("predicates");
+      static PlAtom ATOM_shared("shared");
+      static PlAtom ATOM_subjects("subjects");
+      static PlAtom ATOM_elements("elements");
+
       if ( name == ATOM_mapping )
-	return (a = (long)dict->getMapping());
+	return a.unify_integer(dict->getMapping());
       else if ( name == ATOM_max_id )
-	return (a = (long)dict->getMaxID());
+	return a.unify_integer(dict->getMaxID());
       else if ( name == ATOM_max_object_id )
-	return (a = (long)dict->getMaxObjectID());
+	return a.unify_integer(dict->getMaxObjectID());
       else if ( name == ATOM_max_predicate_id )
-	return (a = (long)dict->getMaxPredicateID());
+	return a.unify_integer(dict->getMaxPredicateID());
       else if ( name == ATOM_max_subject_id )
-	return (a = (long)dict->getMaxSubjectID());
+	return a.unify_integer(dict->getMaxSubjectID());
       else if ( name == ATOM_objects )
-	return (a = (long)dict->getNobjects());
+	return a .unify_integer(dict->getNobjects());
       else if ( name == ATOM_predicates )
-	return (a = (long)dict->getNpredicates());
+	return a.unify_integer(dict->getNpredicates());
       else if ( name == ATOM_shared )
-	return (a = (long)dict->getNshared());
+	return a.unify_integer(dict->getNshared());
       else if ( name == ATOM_subjects )
-	return (a = (long)dict->getNsubjects());
+	return a.unify_integer(dict->getNsubjects());
       else if ( name == ATOM_elements )
-	return (a = (long)dict->getNumberOfElements());
+	return a.unify_integer(dict->getNumberOfElements());
       else
-	return PL_domain_error("hdt_property", A2);
+	throw PlDomainError("hdt_property", A2);
     } CATCH_HDT;
   }
 
-  return PL_type_error("compound", A2);
+  throw PlTypeError("compound", A2);
 }
 
 
-PREDICATE_NONDET(hdt_column_, 3)
-{ IteratorUCharString *it;
+struct IteratorUCharString_ctx
+{ unique_ptr<IteratorUCharString> it;
+};
 
-  switch(PL_foreign_control(handle))
+
+PREDICATE_NONDET(hdt_column_, 3)
+{ auto ctx = handle.context_unique_ptr<IteratorUCharString_ctx>();
+
+  switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
-      atom_t a;
+      PlAtom a(PlAtom::null);
+      ctx.reset(new IteratorUCharString_ctx());
 
-      if ( !get_hdt(A1, &symb) ||
-	   !PL_get_atom_ex(A2, &a) )
-	return FALSE;
+      get_hdt(A1, &symb);
+      A2.get_atom_ex(&a);
 
       try
       { Dictionary *dict = symb->hdt->getDictionary();
+
+	static PlAtom ATOM_subject("subject");
+	static PlAtom ATOM_predicate("predicate");
+	static PlAtom ATOM_shared("shared");
+	static PlAtom ATOM_object("object");
+
 	if ( a == ATOM_subject )
-	  it = dict->getSubjects();
+	  ctx->it.reset(dict->getSubjects());
 	else if ( a == ATOM_predicate )
-	  it = dict->getPredicates();
+	  ctx->it.reset(dict->getPredicates());
 	else if ( a == ATOM_shared )
-	  it = dict->getShared();
+	  ctx->it.reset(dict->getShared());
 	else if ( a == ATOM_object )
-	  it = dict->getObjects();
+	  ctx->it.reset(dict->getObjects());
 	else
-	  return PL_domain_error("hdt_column", A2);
+	  throw PlDomainError("hdt_column", A2);
       } CATCH_HDT;
 
-      goto next;
-    }
+    } // TODO: [[fallthrough]]
     case PL_REDO:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-    next:
-      if ( it->hasNext() )
-      { unsigned char *s = it->next();
-	int rc;
+      if ( ctx->it->hasNext() )
+      { unsigned char *s = ctx->it->next();
 
-	rc = PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
-	it->freeStr(s);
+	int rc = A3.unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, reinterpret_cast<const char*>(s));
+	ctx->it->freeStr(s);
 	if ( rc )
-	  PL_retry_address((void*)it);
+	  PL_retry_address(ctx.release());
       }
-      delete it;
-      return FALSE;
+      return false;
     case PL_PRUNED:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-      delete it;
-      return TRUE;
+      return true;
+    default:
+      assert(0);
+      return false;
   }
+
+  return false;
 }
 
 
 PREDICATE_NONDET(hdt_object_, 2)
-{ IteratorUCharString *it;
+{ auto ctx = handle.context_unique_ptr<IteratorUCharString_ctx>();
   uintptr_t mask = 0;
 
-  switch(PL_foreign_control(handle))
+  switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
-      atom_t a;
+      ctx.reset(new IteratorUCharString_ctx());
 
-      if ( !get_hdt(A1, &symb) )
-	return FALSE;
+      get_hdt(A1, &symb);
 
       try
-      { it = symb->hdt->getDictionary()->getObjects();
+      { ctx->it.reset(symb->hdt->getDictionary()->getObjects());
       } CATCH_HDT;
-      goto next;
-    }
+    } // TODO: [[fallthrough]]
     case PL_REDO:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-    next:
-      if ( it->hasNext() )
-      { unsigned char *s = it->next();
-	int rc;
+      if ( ctx->it->hasNext() )
+      { unsigned char *s = ctx->it->next();
 
-	rc = unify_object(A2, (const char*)s);
-	it->freeStr(s);
+	int rc = unify_object(A2, reinterpret_cast<const char*>(s));
+	ctx->it->freeStr(s);
 	if ( rc )
-	  PL_retry_address((void*)it);
+	  PL_retry_address(ctx.release());
       }
-      delete it;
-      return FALSE;
+      return false;
     case PL_PRUNED:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-      delete it;
-      return TRUE;
+      return true;
   }
+
+  return false;
 }
 
 
 static int
-get_triple_role(term_t t, TripleComponentRole *role)
-{ atom_t name;
+get_triple_role(PlTerm t, TripleComponentRole *role)
+{ static PlAtom ATOM_subject("subject");
+  static PlAtom ATOM_predicate("predicate");
+  static PlAtom ATOM_object("object");
 
-  if ( !PL_get_atom_ex(t, &name) )
-    return FALSE;
+  PlAtom name(PlAtom::null);
+
+  t.get_atom_ex(&name);
   if ( name == ATOM_subject )
     *role = SUBJECT;
   else if ( name == ATOM_predicate )
@@ -610,9 +526,9 @@ get_triple_role(term_t t, TripleComponentRole *role)
   else if ( name == ATOM_object )
     *role = OBJECT;
   else
-    return PL_domain_error("hdt_role", t);
+    throw PlDomainError("hdt_role", t);
 
-  return TRUE;
+  return true;
 }
 
 
@@ -624,56 +540,48 @@ PREDICATE(hdt_string_id, 4)
   TripleComponentRole roleid;
   size_t len; char *s;
 
-  if ( !get_hdt(A1, &symb) ||
-       !get_triple_role(A2, &roleid) )
-    return FALSE;
+  get_hdt(A1, &symb);
+  if ( !get_triple_role(A2, &roleid) )
+    return false;
 
   try
   { Dictionary *dict = symb->hdt->getDictionary();
 
-    if ( !PL_is_variable(A3) )
-    { if ( PL_get_nchars(A3, &len, &s,
+    if ( !A3.is_variable() )
+    { if ( A3.get_nchars(&len, &s,
 			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
       { std::string str(s);
 	size_t id = dict->stringToId(str, roleid);
 
 	if ( id )
-	  return (A4 = (long)id);	/* signed/unsigned mismatch */
+	  return A4.unify_integer(id);	/* signed/unsigned mismatch */ // TODO: (long) ?
       }
     } else
-    { std::string str = dict->idToString((size_t)(long)A4, roleid);
+    { std::string str = dict->idToString(A4.as_size_t(), roleid);
 
       if ( !str.empty() )
-	return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
+	return A3.unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
     }
   } CATCH_HDT;
 
-  return FALSE;
+  return false;
 }
 
 
-typedef struct
-{ unsigned flags;
-  IteratorTripleID *it;
-} searchid_it;
+struct searchid_it
+{ unsigned flags = 0;
+  std::unique_ptr<IteratorTripleID> it;
+};
 
 
-static int
-get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
-{ if ( PL_is_variable(t) )
+static void
+get_search_id(PlTerm t, size_t *id, unsigned flag, unsigned *flagp)
+{ if ( t.is_variable() )
   { *id = 0;
     *flagp |= flag;
-    return TRUE;
   } else
-  { size_t i;
-
-    if ( PL_get_size_ex(t, &i) )
-    { *id = i;
-      return TRUE;
-    }
+  { t.get_size_ex(id);
   }
-
-  return FALSE;
 }
 
 
@@ -683,59 +591,43 @@ get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 
 PREDICATE_NONDET(hdt_search_id, 4)
 { hdt_wrapper *symb;
-  searchid_it ctx_buf = {0};
-  searchid_it *ctx;
-  int rc;
+  auto ctx = handle.context_unique_ptr<searchid_it>();
 
-  switch(PL_foreign_control(handle))
+  switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { size_t s, p, o;
 
-      ctx = &ctx_buf;
-      if ( !get_hdt(A1, &symb) ||
-	   !get_search_id(A2, &s, S_S, &ctx->flags) ||
-	   !get_search_id(A3, &p, S_P, &ctx->flags) ||
-	   !get_search_id(A4, &o, S_O, &ctx->flags) )
-	return FALSE;
+      ctx.reset(new searchid_it());
+      get_hdt(A1, &symb);
+      get_search_id(A2, &s, S_S, &ctx->flags);
+      get_search_id(A3, &p, S_P, &ctx->flags);
+      get_search_id(A4, &o, S_O, &ctx->flags);
 
       try
       { TripleID t(s,p,o);
-	ctx->it = symb->hdt->getTriples()->search(t);
+	ctx->it.reset(symb->hdt->getTriples()->search(t));
       } CATCH_HDT;
-
-      goto next;
-    }
+    } // TODO: [[fallthrough]]
     case PL_REDO:
-      ctx = (searchid_it*)PL_foreign_context_address(handle);
-    next:
     { if ( ctx->it->hasNext() )
       { TripleID *t = ctx->it->next();
 
-	if ( (!(ctx->flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
-	     (!(ctx->flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
-	     (!(ctx->flags&S_O) || PL_unify_integer(A4, t->getObject())) )
-	{ if ( ctx == &ctx_buf )
-	  { ctx = (searchid_it*)PL_malloc(sizeof(*ctx));
-	    *ctx = ctx_buf;
-	  }
-	  PL_retry_address(ctx);
+	if ( (!(ctx->flags&S_S) || A2.unify_integer(t->getSubject())) &&
+	     (!(ctx->flags&S_P) || A3.unify_integer(t->getPredicate())) &&
+	     (!(ctx->flags&S_O) || A4.unify_integer(t->getObject())) )
+        { PL_retry_address(ctx.release());
 	}
       }
-      rc = FALSE;
-      goto cleanup;
+      return false;
     }
     case PL_PRUNED:
-      ctx = (searchid_it*)PL_foreign_context_address(handle);
-      rc = TRUE;
-    cleanup:
-      if ( ctx->it )
-	delete ctx->it;
-      if ( ctx != &ctx_buf )
-	PL_free(ctx);
-      return rc;
+      return true;
+    default:
+      assert(0);
+      return false;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -747,19 +639,19 @@ PREDICATE(hdt_search_cost_id, 5)
   unsigned int flags=0;
   size_t s, p, o;
 
-  if ( !get_hdt(A1, &symb) ||
-       !get_search_id(A2, &s, S_S, &flags) ||
-       !get_search_id(A3, &p, S_P, &flags) ||
-       !get_search_id(A4, &o, S_O, &flags) )
-    return FALSE;
+  get_hdt(A1, &symb);
+  get_search_id(A2, &s, S_S, &flags);
+  get_search_id(A3, &p, S_P, &flags);
+  get_search_id(A4, &o, S_O, &flags);
 
   try
   { TripleID t(s,p,o);
-    IteratorTripleID *it = symb->hdt->getTriples()->search(t);
+    unique_ptr<IteratorTripleID> it(symb->hdt->getTriples()->search(t));
     long numResults = it->estimatedNumResults();
-    delete it;
-    return (A5 = numResults);
+    return A5.unify_integer(numResults);
   } CATCH_HDT;
+
+  return true;
 }
 
 
@@ -775,46 +667,43 @@ PREDICATE(hdt_search_cost_id, 5)
  */
 
 PREDICATE(hdt_create_from_file, 3)
-{ char *hdt_file, *rdf_file;
+{ static PlAtom ATOM_base_uri("base_uri");
+  char *hdt_file, *rdf_file;
   HDTSpecification spec;
   char *base_uri = (char*)"http://example.org/base";
 
-  if ( !PL_get_file_name(A1, &hdt_file, PL_FILE_OSPATH) ||
-       !PL_get_file_name(A2, &rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
-    return FALSE;
+  if ( !A1.get_file_name(&hdt_file, PL_FILE_OSPATH) ||
+       !A1.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
+    return false;
 
-  PlTail options(A3);
-  PlTerm opt;
+  PlTerm_tail options(A3);
+  PlTerm_var opt;
   while(options.next(opt))
-  { atom_t name;
+    { PlAtom name(PlAtom::null);
     size_t arity;
 
-    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    if ( opt.get_name_arity(&name, &arity) && arity == 1 )
     { PlTerm ov = opt[1];
 
       if ( name == ATOM_base_uri )
       { size_t len;
 
-	if ( !PL_get_nchars(ov, &len, &base_uri,
+	if ( !ov.get_nchars(&len, &base_uri,
 			    CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
-	  return FALSE;
+	  return false;
       }
     } else
-      return PL_type_error("option", opt);
+      throw PlTypeError("option", opt);
   }
 
   try
-  { HDT *hdt = HDTManager::generateHDT(rdf_file, base_uri, NTRIPLES, spec);
+  { unique_ptr<HDT> hdt(HDTManager::generateHDT(rdf_file, base_uri, NTRIPLES, spec));
 
     //Header *header = hdt->getHeader();
     //header->insert("myResource1", "property", "value");
 
     hdt->saveToHDT(hdt_file);
-
-    delete hdt;
   } CATCH_HDT
 
-  return TRUE;
+  return true;
 }
-
-

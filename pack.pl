@@ -1,5 +1,5 @@
 name(hdt).
-version('0.5').
+version('0.5.1').
 title('Access RDF HDT files').
 keywords(['RDF']).
 author( 'Jan Wielemaker', 'J.Wielemaker@vu.nl' ).
