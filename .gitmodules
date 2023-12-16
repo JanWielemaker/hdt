@@ -1,4 +1,4 @@
 [submodule "hdt-cpp"]
 	path = hdt-cpp
-	url = https://github.com/rdfhdt/hdt-cpp.git
+	url = ../hdt-cpp.git
 	branch = develop
