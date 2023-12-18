@@ -39,7 +39,10 @@ $(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: FORCE
 FORCE:
 
 check::
+	$(SWIPL) -g test_hdt -t halt test/test_hdt.pl
+
 install::
+
 clean:
 	rm -f $(OBJ) $(OBJ2)
 	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
@@ -47,3 +50,4 @@ clean:
 
 distclean: clean
 	rm -f $(SOBJ)
+	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) distclean

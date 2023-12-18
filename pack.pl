@@ -1,5 +1,5 @@
 name(hdt).
-version('0.5.2').
+version('0.5.3').
 % TODO: swipl_version([90121]).
 title('Access RDF HDT files').
 keywords(['RDF']).
