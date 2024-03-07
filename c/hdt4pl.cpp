@@ -40,7 +40,6 @@
 
 #include <SWI-cpp2.cpp>
 
-// using namespace std; TODO: remove this
 using namespace hdt;
 
 static void	deleteHDT(HDT *hdt);
@@ -93,24 +92,6 @@ struct hdt_wrapper : public PlBlob
     return file_name.compare(b_data->file_name);
   }
 };
-
-
-static void
-get_hdt(PlTerm t, hdt_wrapper **symb_ptr)
-{ PL_blob_t *type;
-  void *data;
-
-  if ( t.get_blob(&data, NULL, &type) && type == &hdt_blob)
-  { auto symb = static_cast<hdt_wrapper*>(data);
-
-    if ( !symb->hdt )
-      throw PlExistenceError("hdt", t);
-    *symb_ptr = symb;
-    return;
-  }
-
-  throw PlTypeError("hdt", t);
-}
 
 
 static void
@@ -181,9 +162,7 @@ PREDICATE(hdt_open_, 3)
 
 
 PREDICATE(hdt_close, 1)
-{ hdt_wrapper *symb;
-
-  get_hdt(A1, &symb);
+{ hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
   symb->close();
   return true;
 }
@@ -198,16 +177,13 @@ struct search_it
   std::unique_ptr<IteratorTripleString> it;
 };
 
-static int
-get_search_string(PlTerm t, char **s, unsigned flag, unsigned *flagp)
+static std::string
+get_search_string(PlTerm t, unsigned flag, unsigned *flagp)
 { if ( t.is_variable() )
-  { *s = (char*)"";
-    *flagp |= flag;
-    return true;
+  { *flagp |= flag;
+    return "";
   } else
-  { size_t len;
-
-    return t.get_nchars(&len, s, CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+  { return t.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   }
 }
 
@@ -272,8 +248,7 @@ unify_object(PlTerm t, const char *s)
 */
 
 PREDICATE_NONDET(hdt_search, 5)
-{ hdt_wrapper *symb;
-  int rc;
+{ int rc;
   auto ctx = handle.context_unique_ptr<search_it>();
 
   static PlAtom ATOM_content("content");
@@ -281,22 +256,21 @@ PREDICATE_NONDET(hdt_search, 5)
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
-    { char *s, *p, *o;
+    { std::string s, p, o;
       PlAtom where(PlAtom::null);
 
       ctx.reset(new search_it());
-      get_hdt(A1, &symb);
+      hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
       A2.get_atom_ex(&where);
-      if ( !get_search_string(A3, &s, S_S, &ctx->flags) ||
-	   !get_search_string(A4, &p, S_P, &ctx->flags) ||
-	   !get_search_string(A5, &o, S_O, &ctx->flags) )
-	return false;
+      s = get_search_string(A3, S_S, &ctx->flags);
+      p = get_search_string(A4, S_P, &ctx->flags);
+      o = get_search_string(A5, S_O, &ctx->flags);
 
       try
       { if ( where == ATOM_content )
-          ctx->it.reset(symb->hdt->search(s,p,o));
+          ctx->it.reset(symb->hdt->search(s.c_str(),p.c_str(),o.c_str()));
         else if ( where == ATOM_header )
-          ctx->it.reset(symb->hdt->getHeader()->search(s,p,o));
+          ctx->it.reset(symb->hdt->getHeader()->search(s.c_str(),p.c_str(),o.c_str()));
         else
           throw PlDomainError("hdt_where", A2);
       } CATCH_HDT;
@@ -328,27 +302,23 @@ PREDICATE_NONDET(hdt_search, 5)
 */
 
 PREDICATE(hdt_suggestions, 5)
-{ hdt_wrapper *symb;
+{ hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
   TripleComponentRole role;
-  char *from;
-  size_t len;
   int max_count;
-  std::vector<string> out;
+  std::vector<std::string> out;
+  std::string from = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
 
-  get_hdt(A1, &symb);
-  if ( !A2.get_nchars(&len, &from,
-		      CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) ||
-       !get_triple_role(A3, &role) )
+  if ( !get_triple_role(A3, &role) )
     return false;
   A4.get_integer_ex(&max_count);
 
   try
-  { symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
+  { symb->hdt->getDictionary()->getSuggestions(from.c_str(), role, out, max_count);
   } CATCH_HDT;
 
   PlTerm tail = A5.copy_term_ref();
   PlTerm_var head;
-  for(std::vector<string>::iterator it = out.begin();
+  for(std::vector<std::string>::iterator it = out.begin();
       it != out.end();
       ++it)
   { if ( !tail.unify_list(head,tail) ||
@@ -366,11 +336,9 @@ PREDICATE(hdt_suggestions, 5)
 		 *******************************/
 
 PREDICATE(hdt_property_, 2)
-{ hdt_wrapper *symb;
+{ hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
   PlAtom name(PlAtom::null);
   size_t arity;
-
-  get_hdt(A1, &symb);
 
   if ( A2.get_name_arity(&name, &arity) )
   { PlTerm a = A2[1];
@@ -428,11 +396,9 @@ PREDICATE_NONDET(hdt_column_, 3)
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
-    { hdt_wrapper *symb;
+    { hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
       PlAtom a(PlAtom::null);
       ctx.reset(new IteratorUCharString_ctx());
-
-      get_hdt(A1, &symb);
       A2.get_atom_ex(&a);
 
       try
@@ -483,10 +449,8 @@ PREDICATE_NONDET(hdt_object_, 2)
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
-    { hdt_wrapper *symb;
-      ctx.reset(new IteratorUCharString_ctx());
-
-      get_hdt(A1, &symb);
+    { ctx.reset(new IteratorUCharString_ctx());
+      hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
 
       try
       { ctx->it.reset(symb->hdt->getDictionary()->getObjects());
@@ -536,11 +500,9 @@ get_triple_role(PlTerm t, TripleComponentRole *role)
 */
 
 PREDICATE(hdt_string_id, 4)
-{ hdt_wrapper *symb;
+{ hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
   TripleComponentRole roleid;
-  size_t len; char *s;
 
-  get_hdt(A1, &symb);
   if ( !get_triple_role(A2, &roleid) )
     return false;
 
@@ -548,14 +510,11 @@ PREDICATE(hdt_string_id, 4)
   { Dictionary *dict = symb->hdt->getDictionary();
 
     if ( !A3.is_variable() )
-    { if ( A3.get_nchars(&len, &s,
-			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
-      { std::string str(s);
-	size_t id = dict->stringToId(str, roleid);
+    { std::string str = A3.get_nchars(CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION);
+      size_t id = dict->stringToId(str, roleid);
 
-	if ( id )
-	  return A4.unify_integer(id);	/* signed/unsigned mismatch */ // TODO: (long) ?
-      }
+      if ( id )
+        return A4.unify_integer(id);	/* signed/unsigned mismatch */ // TODO: (long) ?
     } else
     { std::string str = dict->idToString(A4.as_size_t(), roleid);
 
@@ -590,15 +549,13 @@ get_search_id(PlTerm t, size_t *id, unsigned flag, unsigned *flagp)
 */
 
 PREDICATE_NONDET(hdt_search_id, 4)
-{ hdt_wrapper *symb;
-  auto ctx = handle.context_unique_ptr<searchid_it>();
+{ auto ctx = handle.context_unique_ptr<searchid_it>();
 
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { size_t s, p, o;
-
       ctx.reset(new searchid_it());
-      get_hdt(A1, &symb);
+      hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
       get_search_id(A2, &s, S_S, &ctx->flags);
       get_search_id(A3, &p, S_P, &ctx->flags);
       get_search_id(A4, &o, S_O, &ctx->flags);
@@ -635,11 +592,10 @@ PREDICATE_NONDET(hdt_search_id, 4)
 */
 
 PREDICATE(hdt_search_cost_id, 5)
-{ hdt_wrapper *symb;
+{ hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
   unsigned int flags=0;
   size_t s, p, o;
 
-  get_hdt(A1, &symb);
   get_search_id(A2, &s, S_S, &flags);
   get_search_id(A3, &p, S_P, &flags);
   get_search_id(A4, &o, S_O, &flags);
@@ -670,7 +626,7 @@ PREDICATE(hdt_create_from_file, 3)
 { static PlAtom ATOM_base_uri("base_uri");
   char *hdt_file, *rdf_file;
   HDTSpecification spec;
-  char *base_uri = (char*)"http://example.org/base";
+  std::string base_uri("http://example.org/base");
 
   if ( !A1.get_file_name(&hdt_file, PL_FILE_OSPATH) ||
        !A1.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
@@ -686,18 +642,13 @@ PREDICATE(hdt_create_from_file, 3)
     { PlTerm ov = opt[1];
 
       if ( name == ATOM_base_uri )
-      { size_t len;
-
-	if ( !ov.get_nchars(&len, &base_uri,
-			    CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
-	  return false;
-      }
+	base_uri = ov.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
     } else
       throw PlTypeError("option", opt);
   }
 
   try
-  { unique_ptr<HDT> hdt(HDTManager::generateHDT(rdf_file, base_uri, NTRIPLES, spec));
+  { unique_ptr<HDT> hdt(HDTManager::generateHDT(rdf_file, base_uri.c_str(), NTRIPLES, spec));
 
     //Header *header = hdt->getHeader();
     //header->insert("myResource1", "property", "value");
