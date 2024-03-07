@@ -1,6 +1,7 @@
 name(hdt).
-version('0.5.3').
-% TODO: swipl_version([90121]).
+version('0.5.4').
+pack_version(2).
+% swipl_version([90302]). % TODO: add stable version
 title('Access RDF HDT files').
 keywords(['RDF']).
 author( 'Jan Wielemaker', 'J.Wielemaker@vu.nl' ).
