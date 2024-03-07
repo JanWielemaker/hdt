@@ -101,7 +101,7 @@
 %	  - indexed(+Boolean)
 %	  Whether an index is created. Default is `true`. Such an index
 %	  is needed for partially instantiated calls to hdt_search/4.
-%	  The index is maintained in a file with extension `.index`
+%	  The index is maintained in a file with extension `.index.v1-1`
 %	  in the same directory as the HDT file.  An index is not needed
 %	  if you only want to extract _all_ triples.
 
