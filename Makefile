@@ -29,10 +29,10 @@ CC=$(SWIPL_CC)
 all:	$(SOBJ)
 
 c/libhdt.a: $(HDTLIB)/libhdt.a
-	ln -f $< $@
+	ln -f -s $$PWD/$< $@
 
 c/libcds.a: $(CDSLIB)/libcds.a
-	ln -f $< $@
+	ln -f -s $$PWD/$< $@
 
 $(SOBJ): $(OBJ) $(OBJ2)
 	mkdir -p $(SWIPL_MODULE_DIR)
@@ -42,7 +42,8 @@ c/hdt4pl.o: c/hdt4pl.cpp $(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
 $(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: FORCE
-	$(MAKE) -C $(HDTHOME) $(MAKE_J)
+	@# Assumes that ./configure has been run
+	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
 
 FORCE:
 
