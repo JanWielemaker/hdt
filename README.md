@@ -67,3 +67,16 @@ If the installation went well, you can load the HDT library with the following c
 ## Status
 
 Usable, but still experimental.
+
+## Notes
+
+The `hdt-cpp` directory has a number of utilities in
+`hdt-cpp/libhdt/tools`.  For details, see `hdt-cpp/README.md`:
+* hdt2rdf
+* hdtInfo
+* hdtSearch
+* modifyHeader
+* rdf2hdt
+* replaceHeader
+* searchHeader
+
