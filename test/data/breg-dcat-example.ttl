@@ -1,0 +1,155 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix cpsv: <http://purl.org/vocab/cpsv#> .
+@prefix cv: <http://data.europa.eu/m8g/> .
+
+# An example of a Public Organisation:
+# "A Public Organisation is the responsible Agent for the delivery of a Public Service. 
+# This specification uses the class from the Core Public Organization Vocabulary, 
+# based also on the W3C Organization Ontology"
+# All Public Registry Services must be related to a Public Organisation.
+
+<https://joinup.ec.europa.eu/collection/access-base-registries/solution/abr-bregdcat-ap#example-public-organisation>
+  a cv:PublicOrganisation ;
+  dct:identifier "ae1d152b-57b7-4e78-bf6f-fbe8ceb0af06" ;
+  skos:prefLabel "Administración Pública del Gobierno de España"@es ; 
+  dct:spatial <http://publications.europa.eu/resource/authority/country/ESP> ; 
+  dct:title "Administración pública"@es .
+
+# An example of a Public Registry Service:
+# "A Registry Service is a public service that creates, maintains 
+# and/or manages Base Registries or a Registry of Base Registries. 
+# This service, provided by public administrations, or by other organisations on their behalf, 
+# stores and provides basic information on authoritative data items such as 
+# people, companies, vehicles, licences, buildings, locations and roads."
+
+<https://joinup.ec.europa.eu/collection/access-base-registries/solution/abr-bregdcat-ap#example-public-service>
+  a cpsv:PublicService ;
+  dct:description "National vehicles registration service provided by the Public Administration"@en ;
+  dct:description "Servicio nacional de registro de vehículos proporcionado por la Administración Pública"@es ;
+  dct:identifier "<https://example.com/vehicles-service>" ;
+  dct:title "Vehicles registration service"@en ;
+  dct:title "Servicio de registro de vehículos"@es ;
+  cv:hasCompetentAuthority <https://joinup.ec.europa.eu/collection/access-base-registries/solution/abr-bregdcat-ap#example-public-organisation> .
+
+# An example of a Registry Catalog:
+# "A catalogue or repository that lists Datasets or Data Services 
+# managed and provided by a Base Registry Service. 
+# The Registry Catalogue is the main output produced by a Register, 
+# so this specification considers both, DCAT-AP and CPSV-AP to model services and content."
+# This example in particular represents a base registry of vehicles that exposes two distinct datasets.
+
+<https://joinup.ec.europa.eu/collection/access-base-registries/solution/abr-bregdcat-ap#example-catalog>
+  a dcat:Catalog ;
+  dct:description "This is a literal that contains an extended catalog description"@en ;
+  dct:identifier "9fc50d4e-d099-4139-b99f-75ccc18265b4" ;
+  dct:title "Vehicles Register"@en ;
+  dct:title "Registro de vehículos"@es ;
+  dct:publisher <https://government.example.com> ;
+  foaf:homepage <https://example.com/vehicles-register> ;
+  dct:issued "2019-06-18T10:30:00"^^xsd:dateTime ;
+  dct:LinguisticSystem <http://id.loc.gov/vocabulary/iso639-1/en> ;
+  dcat:themeTaxonomy <http://eurovoc.europa.eu/100141> ;
+  dct:spatial <http://publications.europa.eu/resource/authority/country/ESP> ; 
+  dcat:dataset [
+    a dcat:Dataset ;
+    dct:description "Dataset of legal owners of registered vehicles."@en ;
+    dct:identifier "<https://example.com/vehicles-register/owners>" ;
+    dct:title "Vehicle owners"@en ;
+    dcat:theme <http://eurovoc.europa.eu/100154> ;
+    dcat:distribution [
+      a dcat:Distribution ;
+      dct:description "Unstructured owners distribution (PDF)"@en ;
+      dcat:accessURL <https://example.com/vehicles-register/owners.pdf> ; 
+      dcat:mediaType <https://www.w3.org/ns/iana/media-types/application/pdf#Resource>
+    ] ;
+    dcat:distribution [
+      a dcat:Distribution ;
+      dct:description "Structured owners distribution (JSON)"@en ;
+      dcat:accessURL <https://example.com/vehicles-register/owners.json> ; 
+      dcat:mediaType <https://www.w3.org/ns/iana/media-types/application/json#Resource>
+    ] ;
+    dct:spatial <http://publications.europa.eu/resource/authority/country/ESP> ; 
+    dcat:keyword "Vehicle"@en ;
+    dcat:keyword "Transport"@en ;
+    dcat:keyword "Vehículo"@es ;
+    dcat:keyword "Transporte"@es
+  ] ;
+  dcat:dataset [
+    a dcat:Dataset ;
+    dct:description "Dataset of vehicle transactions in the Principality of Asturias."@en ;
+    dct:identifier "<https://example.com/vehicles-register/transactions>" ;
+    dct:title "Vehicle transactions (Asturias)"@en ;
+    dcat:theme <http://eurovoc.europa.eu/100154> ;
+    dcat:theme <http://eurovoc.europa.eu/100147> ;
+    dcat:distribution [
+      a dcat:Distribution ;
+      dcat:accessURL <https://example.com/vehicles-register/transactions.json> ; 
+      dcat:mediaType <https://www.w3.org/ns/iana/media-types/application/json#Resource>
+    ] ;
+    dct:spatial <https://sws.geonames.org/3114710/> ; 
+    dct:temporal [
+        a dct:PeriodOfTime ;
+        dcat:startDate "2019-01-01T00:00:00"^^xsd:dateTime ;
+        dcat:endDate "2020-01-01T00:00:00"^^xsd:dateTime
+    ] ;
+    dcat:keyword "Vehicle"@en ;
+    dcat:keyword "Transport"@en ;
+    dcat:keyword "Transaction"@en ;
+  ] .
+
+# An example of an Agent:
+# "An entity that is associated with Public Services, Registries and/or Datasets. 
+# Agents may be either organisations or persons."
+
+<https://government.example.com>
+  a foaf:Agent ;
+  foaf:name "Public Administration" ;
+  dct:identifier "public-admin" ;
+  skos:inScheme <http://publications.europa.eu/resource/authority/corporate-body> ;
+  dct:type <http://purl.org/adms/publishertype/NationalAuthority> .
+
+# These assertions are somewhat redundant but are necessary to ensure 
+# that the BRegDCAT validator at the following URL does not produce error violations:
+# https://www.itb.ec.europa.eu/shacl/bregdcat-ap/upload
+
+<https://example.com/vehicles-register>
+  a foaf:Document .
+
+<http://eurovoc.europa.eu/100141>
+  a skos:ConceptScheme ;
+  dct:title "EuroVoc" .
+
+<http://purl.org/adms/publishertype/NationalAuthority>
+  a skos:Concept ;
+  skos:prefLabel "National authority" ;
+  skos:inScheme <http://purl.org/adms/publishertype/1.0> .
+
+<http://purl.org/adms/publishertype/1.0>
+  a skos:ConceptScheme ;
+  dct:title "Publisher Type" .
+
+<http://eurovoc.europa.eu/100154>
+  a skos:Concept ;
+  skos:prefLabel "Transport" .
+
+<http://eurovoc.europa.eu/100147>
+  a skos:Concept ;
+  skos:prefLabel "Trade" .
+
+<http://publications.europa.eu/resource/authority/country/ESP>
+  a dct:Location ; 
+  skos:inScheme <http://publications.europa.eu/resource/authority/country> .
+
+<https://sws.geonames.org/3114710/>
+  a dct:Location ; 
+  skos:inScheme <http://sws.geonames.org> .
+
+<https://www.w3.org/ns/iana/media-types/application/pdf#Resource>
+  a dct:MediaType .
+
+<https://www.w3.org/ns/iana/media-types/application/json#Resource>
+  a dct:MediaType .

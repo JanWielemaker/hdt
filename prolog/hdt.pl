@@ -393,12 +393,16 @@ hdt_search_cost(_, _, _, _, 0).
 
 %!	hdt_create_from_file(+HDTFile, +RDFFile, +Options)
 %
-%	Create a HDT  file  from  an  RDF   file.  RDFFile  must  be  in
-%	`ntriples` format.  Options:
+%	Create a HDT  file  from  an  RDF   file.  The format of RDFFile
+%	defaults to `ntriples` format.  Options:
 %
 %	  * base_uri(+URI)
 %	  URI is used for generating the header properties (see
 %	  http_header/4.
+%	  * format(+Notation)
+%	  Notation is one of: `ntriples`, `nt`, `turtle`, `ttl`, `nquads`, `nq`, `trig`
+%	    (also upper/lower case variants such as "TriG" or "TTL")
+%         defaults to `ntriples`.
 
 
 		 /*******************************

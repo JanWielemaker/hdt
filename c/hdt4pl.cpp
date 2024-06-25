@@ -624,31 +624,56 @@ PREDICATE(hdt_search_cost_id, 5)
 
 PREDICATE(hdt_create_from_file, 3)
 { static PlAtom ATOM_base_uri("base_uri");
+  static PlAtom ATOM_format("format");
   char *hdt_file, *rdf_file;
   HDTSpecification spec;
   std::string base_uri("http://example.org/base");
+  RDFNotation notation = NTRIPLES;
 
   if ( !A1.get_file_name(&hdt_file, PL_FILE_OSPATH) ||
-       !A1.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
+       !A2.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
     return false;
 
   PlTerm_tail options(A3);
   PlTerm_var opt;
   while(options.next(opt))
-    { PlAtom name(PlAtom::null);
+  { PlAtom name(PlAtom::null);
     size_t arity;
 
     if ( opt.get_name_arity(&name, &arity) && arity == 1 )
     { PlTerm ov = opt[1];
-
       if ( name == ATOM_base_uri )
-	base_uri = ov.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+      { base_uri = ov.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+      } else if ( name == ATOM_format )
+      { std::string format = ov.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+	for ( auto &c : format )
+	  c = toupper(c);
+	// The following are the supported values per hdt-cpp/libhdt/include/HDTEnums.hpp
+	// and hdtInfo -h (which lists nquads,nq,ntriples,nt,trig,turtle,ttl
+	// but if an unsupported  value is specified gives:
+	// - `ntriples' or `nt' for N-Triples
+	// - `nquads' or `nq' for N-Quads
+	// - `turtle' or `ttl' for Turtle
+	// - `trig' for TriG
+
+	if ( format == "NTRIPLES" || format == "NT" )
+	  notation = NTRIPLES;
+	else if ( format == "TURTLE" || format == "TTL" )
+	  notation = TURTLE;
+	else if ( format == "NQUADS" || format == "NQ" )
+	  notation = NQUADS;
+	else if ( format == "TRIG" )
+	  notation = TRIG;
+	else
+	  throw PlTypeError("format option", ov);
+      } else
+	throw PlTypeError("option", opt);
     } else
       throw PlTypeError("option", opt);
   }
 
   try
-  { unique_ptr<HDT> hdt(HDTManager::generateHDT(rdf_file, base_uri.c_str(), NTRIPLES, spec));
+  { unique_ptr<HDT> hdt(HDTManager::generateHDT(rdf_file, base_uri.c_str(), notation, spec));
 
     //Header *header = hdt->getHeader();
     //header->insert("myResource1", "property", "value");

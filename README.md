@@ -57,3 +57,15 @@ This     pack     is     based     on       our     [fork     of     the
 hdt-cpp](https://github.com/JanWielemaker/hdt-cpp). The fork   is mostly
 the work of Peter Ludemann, fixing several   issues  with modern C++ and
 libraries.
+
+## Notes
+
+The `hdt-cpp` directory has a number of utilities in
+`hdt-cpp/libhdt/tools`.  For details, see `hdt-cpp/README.md`:
+* hdt2rdf
+* hdtInfo
+* hdtSearch
+* modifyHeader
+* rdf2hdt
+* replaceHeader
+* searchHeader
