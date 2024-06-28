@@ -60,6 +60,8 @@ libraries.
 
 ## Notes
 
+See also [RDF basics wiki](https://swi-prolog.discourse.group/t/rdf-basics/4105).
+
 The `hdt-cpp` directory has a number of utilities in
 `hdt-cpp/libhdt/tools`.  For details, see `hdt-cpp/README.md`:
 * hdt2rdf

@@ -1,0 +1,25 @@
+# from  https://www.w3.org/TR/turtle/#sec-examples
+# (see also https://en.wikipedia.org/wiki/Turtle_(syntax)#Example)
+# with additional facts added
+
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix ex: <http://example.org/stuff/1.0a/> .
+
+<http://www.w3.org/TR/rdf-syntax-grammar>
+  dc:title "RDF/XML Syntax Specification (Revised)" ;
+  ex:editor [
+    ex:fullname "Dave Beckett";
+    ex:homePage <http://purl.org/net/dajobe/>
+  ] .
+
+<http://www.swi-prolog.org>
+  dc:title "SWI-Prolog" ;
+  dc:journal "Theory and Practice of Logic Programming" ;
+  ex:author [
+    ex:fullname "Jan Wielemaker";
+    ex:homePage  <http://www.swi-prolog.org>
+  ] ;
+  ex:author [
+    ex:fullname "Tom  Schrijvers"
+  ].

@@ -2,13 +2,14 @@
 
 # TODO: The git commands should probably be in a "dependencies"
 #       step; however, that requires adding
-#       prolog:build_setp(dependencies, make) to build/make.pl
+#       prolog:build_step(dependencies, make) to build/make.pl
 
 set -e -x
 
 HDTHOME=hdt-cpp
 
-( [ ! -f ${HDTHOME}/autogen.sh ] || (cd ${HDTHOME} && git reset --hard) )
+# For development of hdt-cpp, comment out the following 2 lines:
+[ ! -f ${HDTHOME}/autogen.sh ] || (cd ${HDTHOME} && git reset --hard)
 git submodule update --init ${HDTHOME}
 
 cd ${HDTHOME}

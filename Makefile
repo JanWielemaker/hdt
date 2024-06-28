@@ -41,9 +41,11 @@ $(SOBJ): $(OBJ) $(OBJ2)
 c/hdt4pl.o: c/hdt4pl.cpp $(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
-$(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: FORCE
-	@# Assumes that ./configure has been run
+$(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: $(HDTHOME)/Makefile FORCE
 	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
+
+$(HDTHOME)/Makefile:
+	./configure
 
 FORCE:
 
@@ -64,3 +66,13 @@ distclean: clean
 	rm -f $(SOBJ)
 	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) distclean
 	cd $(HDTHOME) && git clean -d -f -x
+
+# For development - need to have done pack_install(.)
+#   which also creates buildenv.sh, so you can do:
+#   make -C path/to/hdt dev-build
+# You may need to comment out the 'git reset' and 'git submodule update'
+# lines in configure and the "clean" rule of this Makefile
+
+dev-build:
+	. ./buildenv.sh && $(MAKE)
+	swipl -g run_tests -t halt test/test_hdt.pl
