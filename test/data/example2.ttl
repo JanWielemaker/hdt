@@ -1,0 +1,26 @@
+# from  https://www.w3.org/TR/turtle/#sec-examples
+
+PREFIX : <http://example.org/stuff/1.0b/>
+:a :b ( "apple" "banana" ) .
+
+@prefix : <http://example.org/stuff/1.0c/> .
+
+:a :b "The first line\nThe second line\n  more" .
+
+:a :b """The first line
+The second line
+  more""" .
+
+@prefix : <http://example.org/stuff/1.0d/> .
+(1 2.0 3E1) :p "w" .
+
+PREFIX : <http://example.org/stuff/1.0e/>
+(1 [:p :q] ( 2 ) ) :p2 :q2 .
+
+@prefix ericFoaf: <http://www.w3.org/People/Eric/ericP-foaf.rdf#> .
+@prefix : <http://xmlns.com/foaf/0.1/> .
+ericFoaf:ericP :givenName "Eric" ;
+              :knows <http://norman.walsh.name/knows/who/dan-brickley> ,
+                      [ :mbox <mailto:timbl@w3.org> ] ,
+                      <http://getopenid.com/amyvdh> .
+
