@@ -24,7 +24,8 @@ OBJ2=	c/libcds.a c/libhdt.a
 #          "swipl pack install ." creates ./buildenv.sh, which
 #          defines the SWIPL_* environment variables
 
-CC=$(SWIPL_CC)
+CC?=$(SWIPL_CC)
+CXX?=$(SWIPL_CXX)
 
 all:	$(SOBJ)
 
@@ -36,10 +37,10 @@ c/libcds.a: $(CDSLIB)/libcds.a
 
 $(SOBJ): $(OBJ) $(OBJ2)
 	mkdir -p $(SWIPL_MODULE_DIR)
-	$(CC) $(ARCH) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
+	$(CXX) $(ARCH) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
 
 c/hdt4pl.o: c/hdt4pl.cpp $(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
-	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
+	$(CXX) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
 $(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: $(HDTHOME)/Makefile FORCE
 	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
