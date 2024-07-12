@@ -13,36 +13,22 @@ perform the steps below.  Installation and usage is tested on Ubuntu
 and Fedora.  This should work on most Unix-like machines.
 Installation on Windows requires more creativity though.
 
-
-
 ## Installation
 
-1. Install a recent version of Serd. One way of doing this
-on Ubuntu is: `sudo apt install libserd-0-0 serdi`
+### Installing dependencies
 
-The currently installed version can be found by the command `serdi
--v`. The minimum version of Serd is 0.28.0 (see `hdt-cpp/README.md` or
-the `before_install` rule in `hdt-cpp/.travis.yml`).
+In addition to the usual development tools  such `make` and a C compiler
+we need GNU automake and related tools and the RDF base libraries `serd`
+and `raptor2`. Below are the dependencies  for `apt` based Linux systems
+and `rpm` based systems.
 
-If that isn't available, it can be installed and built by:
-```bash
-curl -s http://download.drobilla.net/serd-0.30.0.tar.bz2 | tar -xj && \
-  cd serd-0.30.0 && \
-  python2 ./waf configure && \
-  python2 ./waf && \
-  sudo ./waf install;
-```
+For Debian/Ubuntu based systems
 
-You may wish to specify `--prefix=/usr/local` or `--prefix=$HOME/.local`
-to `waf configure`.
+    apt-get install libtool automake autoconf libserd-dev libraptor2-dev
 
-You can uninstall by `python2 ./waf uninstall`
+For Fedora
 
-2. Install Raptor2.
-
-   On Fedora: `sudo dnf install raptor2-devel`
-
-   On Ubuntu: `sudo apt-get install libraptor2-dev`
+    dnf install aclocal automake libtool serd-devel raptor2-devel
 
 3. After the prerequisites are installed, the HDT library can be
    installed from within Prolog using the following command:
@@ -50,8 +36,6 @@ You can uninstall by `python2 ./waf uninstall`
 ```bash
 ?- pack_install(hdt).
 ```
-
-
 
 ## Usage
 
@@ -62,8 +46,14 @@ If the installation went well, you can load the HDT library with the following c
 ?- [library(hdt)].
 ```
 
-
-
 ## Status
 
-Usable, but still experimental.
+The [HDT](https://www.rdfhdt.org/) format is   attractive  for accessing
+large amounts of _background_ RDF data.  HDT   is  the basis for several
+companies that provide RDF technology at scale. Unfortunately the public
+version of the software is poorly maintained.
+
+This     pack     is     based     on       our     [fork     of     the
+hdt-cpp](https://github.com/JanWielemaker/hdt-cpp). The fork   is mostly
+the work of Peter Ludemann, fixing several   issues  with modern C++ and
+libraries.
