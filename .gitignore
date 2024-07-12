@@ -5,6 +5,7 @@
 *.dylib
 .gdbinit
 buildenv.sh
+status.db
 *.hdt
 *.hdt.index*
 *.nt
