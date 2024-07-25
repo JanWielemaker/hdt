@@ -8,7 +8,8 @@ CDSLIB=$(LIBCDS)/.libs
 SOBJ=	$(SWIPL_MODULE_DIR)/hdt4pl.$(SWIPL_MODULE_EXT)
 NPROC:=$(shell expr $$(nproc) + 1)
 MAKE_J=-j$(NPROC)
-CFLAGS=$(SWIPL_CFLAGS) -I$(LIBHDT)/include -g
+COFLAGS=-O2
+CXXFLAGS=$(SWIPL_CFLAGS) -I$(LIBHDT)/include -std=c++17 $(COFLAGS)
 # This doesn't work because the *.so files get picked first:
 #     LIBS=	-L$(HDTLIB) -L$(CDSLIB) -lhdt -lcds
 # Instead, we copy the *.a files into the same directory as $(OBJ)
@@ -37,10 +38,10 @@ c/libcds.a: $(CDSLIB)/libcds.a
 
 $(SOBJ): $(OBJ) $(OBJ2)
 	mkdir -p $(SWIPL_MODULE_DIR)
-	$(CXX) $(ARCH) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
+	$(CXX) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
 
 c/hdt4pl.o: c/hdt4pl.cpp $(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
-	$(CXX) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ c/hdt4pl.cpp
 
 $(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: $(HDTHOME)/Makefile FORCE
 	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
