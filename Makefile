@@ -40,11 +40,12 @@ $(SOBJ): $(OBJ) $(OBJ2)
 	mkdir -p $(SWIPL_MODULE_DIR)
 	$(CXX) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
 
-c/hdt4pl.o: c/hdt4pl.cpp $(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
+c/hdt4pl.o: c/hdt4pl.cpp .hdt-cpp-sentinel
 	$(CXX) $(CXXFLAGS) -c -o $@ c/hdt4pl.cpp
 
-$(HDTLIB)/libhdt.a $(HDTLIB)/libcds.a: $(HDTHOME)/Makefile FORCE
+.hdt-cpp-sentinel: $(HDTHOME)/Makefile
 	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
+	touch .hdt-cpp-sentinel
 
 $(HDTHOME)/Makefile:
 	./configure
@@ -63,6 +64,7 @@ clean:
 	rm -f $(OBJ) $(OBJ2)
 	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
 	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) clean
+	rm -f .hdt-cpp-sentinel
 
 distclean: clean
 	rm -f $(SOBJ)
