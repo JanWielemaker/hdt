@@ -14,9 +14,8 @@ CXXFLAGS=$(SWIPL_CFLAGS) -I$(LIBHDT)/include -std=c++17 $(COFLAGS)
 #     LIBS=	-L$(HDTLIB) -L$(CDSLIB) -lhdt -lcds
 # Instead, we copy the *.a files into the same directory as $(OBJ)
 # - see the rules for $(OBJ2).
-LIBS= -Lc -lhdt -lcds
 OBJ=	c/hdt4pl.o
-OBJ2=	c/libcds.a c/libhdt.a
+LIBS=	$(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
 # WARNING: A previous version of this Makefile set LD=g++
 #          ... this confuses hdt-cpp's use of libtool.
 #          The correct way of using the linker is with $(CC):
@@ -30,15 +29,9 @@ CXX?=$(SWIPL_CXX)
 
 all:	$(SOBJ)
 
-c/libhdt.a: $(HDTLIB)/libhdt.a
-	ln -f -s $$PWD/$< $@
-
-c/libcds.a: $(CDSLIB)/libcds.a
-	ln -f -s $$PWD/$< $@
-
-$(SOBJ): $(OBJ) $(OBJ2)
+$(SOBJ): $(OBJ) .hdt-cpp-sentinel
 	mkdir -p $(SWIPL_MODULE_DIR)
-	$(CXX) $(SWIPL_MODULE_LDFLAGS) -o $@ $< $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
+	$(CXX) $(SWIPL_MODULE_LDFLAGS) -o $@ $(OBJ) $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
 
 c/hdt4pl.o: c/hdt4pl.cpp .hdt-cpp-sentinel
 	$(CXX) $(CXXFLAGS) -c -o $@ c/hdt4pl.cpp
