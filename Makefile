@@ -1,20 +1,19 @@
 # Build HDT library for SWI-Prolog
 
+# TODO: hdt-cpp/Makefile has a lot of undefined variables
+# MAKEFLAGS=--warn-undefined-variables
+
 HDTHOME=hdt-cpp
 LIBHDT=$(HDTHOME)/libhdt
 LIBCDS=$(HDTHOME)/libcds
 HDTLIB=$(LIBHDT)/.libs
 CDSLIB=$(LIBCDS)/.libs
 SOBJ=	$(SWIPL_MODULE_DIR)/hdt4pl.$(SWIPL_MODULE_EXT)
+OBJ=	c/hdt4pl.o
 NPROC:=$(shell expr $$(nproc) + 1)
 MAKE_J=-j$(NPROC)
-COFLAGS=-O2
+COFLAGS=-O2 -Wall
 CXXFLAGS=$(SWIPL_CFLAGS) -I$(LIBHDT)/include -std=c++17 $(COFLAGS)
-# This doesn't work because the *.so files get picked first:
-#     LIBS=	-L$(HDTLIB) -L$(CDSLIB) -lhdt -lcds
-# Instead, we copy the *.a files into the same directory as $(OBJ)
-# - see the rules for $(OBJ2).
-OBJ=	c/hdt4pl.o
 LIBS=	$(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
 # WARNING: A previous version of this Makefile set LD=g++
 #          ... this confuses hdt-cpp's use of libtool.
@@ -24,21 +23,29 @@ LIBS=	$(HDTLIB)/libhdt.a $(CDSLIB)/libcds.a
 #          "swipl pack install ." creates ./buildenv.sh, which
 #          defines the SWIPL_* environment variables
 
+# The following variables should be set by Make, but in case they're
+# not, get the values that swipl sets (also in buildenv.sh)
 CC?=$(SWIPL_CC)
 CXX?=$(SWIPL_CXX)
 
+# The following should be set by buildenv.sh:
+SWIPL?=swipl
+
+# A dummy file, which is created if $(HDTHOME) succeeds
+HDT_CPP_SENTINEL=.hdt-cpp-sentinel
+
 all:	$(SOBJ)
 
-$(SOBJ): $(OBJ) .hdt-cpp-sentinel
+$(SOBJ): $(OBJ) $(HDT_CPP_SENTINEL)
 	mkdir -p $(SWIPL_MODULE_DIR)
 	$(CXX) $(SWIPL_MODULE_LDFLAGS) -o $@ $(OBJ) $(LIBS) $(SWIPL_MODULE_LIB) -lserd-0
 
-c/hdt4pl.o: c/hdt4pl.cpp .hdt-cpp-sentinel
+c/hdt4pl.o: c/hdt4pl.cpp $(HDT_CPP_SENTINEL)
 	$(CXX) $(CXXFLAGS) -c -o $@ c/hdt4pl.cpp
 
-.hdt-cpp-sentinel: $(HDTHOME)/Makefile
+$(HDT_CPP_SENTINEL): $(HDTHOME)/Makefile
 	set -x -e && $(MAKE) -C $(HDTHOME) $(MAKE_J)
-	touch .hdt-cpp-sentinel
+	touch $(HDT_CPP_SENTINEL)
 
 $(HDTHOME)/Makefile:
 	./configure
@@ -54,13 +61,12 @@ check::
 install::
 
 clean:
-	rm -f $(OBJ) $(OBJ2)
+	$(RM) -f $(OBJ) $(OBJ2) $(HDT_CPP_SENTINEL)
 	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
 	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) clean
-	rm -f .hdt-cpp-sentinel
 
 distclean: clean
-	rm -f $(SOBJ)
+	$(RM) -f $(SOBJ)
 	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) distclean
 	cd $(HDTHOME) && git clean -d -f -x
 
@@ -71,5 +77,5 @@ distclean: clean
 # lines in configure and the "clean" rule of this Makefile
 
 dev-build:
-	. ./buildenv.sh && $(MAKE)
-	swipl -g run_tests -t halt test/test_hdt.pl
+	. ./buildenv.sh && $(MAKE) all check
+	$(SWIPL) -g run_tests -t halt test/test_hdt.pl

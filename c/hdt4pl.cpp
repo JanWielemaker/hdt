@@ -112,7 +112,9 @@ hdt_error(const char *e)
 
 
 PREDICATE(hdt_open_, 3)
-{ static PlAtom ATOM_map("map");
+{ // Called by hdt_open/3, where FileAbs has been expanded by absolute_file_name/3
+  //   A1 = HDT, A2 = FileAbs, A3 = Options
+  static PlAtom ATOM_map("map");
   PlAtom access(ATOM_map); // default
   int indexed = true;
   PlTerm_tail options(A3);
@@ -139,8 +141,19 @@ PREDICATE(hdt_open_, 3)
       throw PlDomainError("option", opt);
   }
 
-  symb->file_name = A2.as_string();
-  const char* fn = symb->file_name.c_str();
+  // This predicate is called by hdt_open/3, which has already called
+  // absolute_file_name/3, so the call to PL_get_file_name() here is
+  // to get the file name into the appropriate OS style (Windows vs
+  // Unix), although that might not be needed (it's not clear where
+  // Windows accepts "/" as a path separator; but get_file_name() also
+  // deals with Unicode issues, which Windows will eventually
+  // support).  PL_FILE_SEARCH is *not* specified because hdt_open/3
+  // has already done that.
+  // TODO: new version of PlTerm::get_file_name() that returns std::string.
+  //       (requires SWI-Prolog 9.3.12)
+  char *fn;
+  PlCheckFail(A2.get_file_name(&fn, PL_FILE_OSPATH|PL_FILE_ABSOLUTE|PL_FILE_READ));
+  symb->file_name = fn;
 
   try
   { if ( access == ATOM_map )
@@ -206,17 +219,12 @@ unify_object(PlTerm t, const char *s)
 	e--;
       if ( e > s )
       { if ( e[1] == '\0' )		/* No type nor lang??  In header ... */
-	{ int rc;
-
-	  s++;
-	  rc = t.unify_chars(PL_STRING|REP_UTF8, e-s, s);
-	  return rc;
+	{ s++;
+	  return t.unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	} else if ( strncmp(e+1, "^^<", 3) == 0 )
 	{ PlTermv av(2);
-	  int rc;
-
 	  s++;
-	  rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
+	  int rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	  e += 4;
 	  rc = rc && av[1].unify_chars(PL_ATOM|REP_UTF8, strlen(e)-1, e);
 	  rc = rc && PL_cons_functor_v(av[0].C_, FUNCTOR_rdftype2.C_, av[0].C_); // TODO: av[0].cons_functor_v()
@@ -224,10 +232,8 @@ unify_object(PlTerm t, const char *s)
 	  return rc;
 	} else if ( strncmp(e+1, "@", 1) == 0 )
 	{ PlTermv av(2);
-	  int rc;
-
 	  s++;
-	  rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
+	  int rc = av[0].unify_chars(PL_STRING|REP_UTF8, e-s, s);
 	  e += 2;
 	  rc = rc && av[1].unify_chars(PL_ATOM|REP_UTF8, (size_t)-1, e);
 	  rc = rc && PL_cons_functor_v(av[0].C_, FUNCTOR_rdflang2.C_, av[0].C_); // TODO: av[0].cons_functor_v()
@@ -248,8 +254,7 @@ unify_object(PlTerm t, const char *s)
 */
 
 PREDICATE_NONDET(hdt_search, 5)
-{ int rc;
-  auto ctx = handle.context_unique_ptr<search_it>();
+{ auto ctx = handle.context_unique_ptr<search_it>();
 
   static PlAtom ATOM_content("content");
   static PlAtom ATOM_header("header");
@@ -274,7 +279,8 @@ PREDICATE_NONDET(hdt_search, 5)
         else
           throw PlDomainError("hdt_where", A2);
       } CATCH_HDT;
-    } // TODO: [[fallthrough]]
+    }
+    [[fallthrough]];
     case PL_REDO:
     { if ( ctx->it->hasNext() )
       { TripleString *t = ctx->it->next();
@@ -421,7 +427,8 @@ PREDICATE_NONDET(hdt_column_, 3)
 	  throw PlDomainError("hdt_column", A2);
       } CATCH_HDT;
 
-    } // TODO: [[fallthrough]]
+    }
+    [[fallthrough]];
     case PL_REDO:
       if ( ctx->it->hasNext() )
       { unsigned char *s = ctx->it->next();
@@ -445,21 +452,18 @@ PREDICATE_NONDET(hdt_column_, 3)
 
 PREDICATE_NONDET(hdt_object_, 2)
 { auto ctx = handle.context_unique_ptr<IteratorUCharString_ctx>();
-  uintptr_t mask = 0;
-
   switch(handle.foreign_control())
   { case PL_FIRST_CALL:
     { ctx.reset(new IteratorUCharString_ctx());
       hdt_wrapper *symb = PlBlobV<hdt_wrapper>::cast_ex(A1, hdt_blob);
-
       try
       { ctx->it.reset(symb->hdt->getDictionary()->getObjects());
       } CATCH_HDT;
-    } // TODO: [[fallthrough]]
+    }
+    [[fallthrough]];
     case PL_REDO:
       if ( ctx->it->hasNext() )
       { unsigned char *s = ctx->it->next();
-
 	int rc = unify_object(A2, reinterpret_cast<const char*>(s));
 	ctx->it->freeStr(s);
 	if ( rc )
@@ -564,7 +568,8 @@ PREDICATE_NONDET(hdt_search_id, 4)
       { TripleID t(s,p,o);
 	ctx->it.reset(symb->hdt->getTriples()->search(t));
       } CATCH_HDT;
-    } // TODO: [[fallthrough]]
+    }
+    [[fallthrough]];
     case PL_REDO:
     { if ( ctx->it->hasNext() )
       { TripleID *t = ctx->it->next();
@@ -630,8 +635,11 @@ PREDICATE(hdt_create_from_file, 3)
   std::string base_uri("http://example.org/base");
   RDFNotation notation = NTRIPLES;
 
-  if ( !A1.get_file_name(&hdt_file, PL_FILE_OSPATH) ||
-       !A2.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
+  // TODO: call absolute_file_name/3 in Prolog, to allow default
+  //       extension ".hdt" (also ".rdf"?)
+  // See comment in hdt_open_/3 with the call A2.get_file_name(...)
+  if ( !A1.get_file_name(&hdt_file, PL_FILE_OSPATH|PL_FILE_ABSOLUTE|PL_FILE_SEARCH) ||
+       !A2.get_file_name(&rdf_file, PL_FILE_OSPATH|PL_FILE_ABSOLUTE|PL_FILE_SEARCH|PL_FILE_READ) )
     return false;
 
   PlTerm_tail options(A3);

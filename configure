@@ -14,4 +14,4 @@ git submodule update --init ${HDTHOME}
 
 cd ${HDTHOME}
 ./autogen.sh
-./configure --prefix=${HOME}/.local CXXFLAGS='-fPIC -O2 -g' CFLAGS='-fPIC -O2 -g'
+./configure --prefix=${HOME}/.local CXXFLAGS='-fPIC -O2 -Wall' CFLAGS='-fPIC -O2 -Wall'
