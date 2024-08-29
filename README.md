@@ -17,18 +17,22 @@ Installation on Windows requires more creativity though.
 
 ### Installing dependencies
 
-In addition to the usual development tools  such `make` and a C compiler
+In addition to the usual development tools such as `make` and a C compiler,
 we need GNU automake and related tools and the RDF base libraries `serd`
 and `raptor2`. Below are the dependencies  for `apt` based Linux systems
 and `rpm` based systems.
 
-For Debian/Ubuntu based systems
+For Debian/Ubuntu based systems:
 
     apt-get install libtool automake autoconf libserd-dev libraptor2-dev
 
 For Fedora
 
     dnf install aclocal automake libtool serd-devel raptor2-devel
+
+The minimum version of Serd is 0.28.0 (see `hdt-cpp/README.md`), which
+can be checked by the command `serdi -v` (requires installing the
+`serdi` package). This package has been tested with Serd 0.30.16.
 
 3. After the prerequisites are installed, the HDT library can be
    installed from within Prolog using the following command:

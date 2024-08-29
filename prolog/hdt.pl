@@ -98,12 +98,15 @@
 %	  How the file is accessed. One of `map` (map the file
 %	  into memory, default) or `load` (load the content of the
 %	  file).
+%
 %	  - indexed(+Boolean)
 %	  Whether an index is created. Default is `true`. Such an index
 %	  is needed for partially instantiated calls to hdt_search/4.
 %	  The index is maintained in a file with extension `.index.v1-1`
-%	  in the same directory as the HDT file.  An index is not needed
-%	  if you only want to extract _all_ triples.
+%	  in the same directory as the HDT file. (When the index is
+%         created, some statistics are printed to standard error.)
+%         An index is not needed if you only want to extract _all_
+%         triples.
 
 hdt_open(HDT, File) :-
 	hdt_open(HDT, File, []).
@@ -394,7 +397,9 @@ hdt_search_cost(_, _, _, _, 0).
 %!	hdt_create_from_file(+HDTFile, +RDFFile, +Options)
 %
 %	Create a HDT  file  from  an  RDF   file.  The format of RDFFile
-%	defaults to `ntriples` format.  Options:
+%	defaults to `ntriples` format. The file names are expanded using
+%       absolute_file_name/3, but without any default extension (this
+%       is different from hdt_open/3 works). Options:
 %
 %	  * base_uri(+URI)
 %	  URI is used for generating the header properties (see
